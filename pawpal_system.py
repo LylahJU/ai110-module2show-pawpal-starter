@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, time
 from typing import List, Optional, Dict
 from enum import Enum
@@ -18,15 +18,24 @@ class Priority(Enum):
     HIGH = "high"
 
 
+class Frequency(Enum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    ONCE = "once"
+
+
 @dataclass
 class Pet:
     name: str
     age: int
     breed: str
     health: HealthStatus
-    owner: Optional[User] = None
+    owner: Optional[Owner] = None
+    tasks: List[Task] = field(default_factory=list)
 
     def __post_init__(self):
+        """Validate pet attributes after initialization."""
         if self.age < 0:
             raise ValueError("Age cannot be negative")
         if not isinstance(self.health, HealthStatus):
@@ -59,20 +68,24 @@ class Task:
     due_date: date
     pet: Pet
     task_type: str
+    frequency: Frequency = Frequency.ONCE
     priority: Priority = Priority.MEDIUM
     completed: bool = False
 
     def __post_init__(self):
+        """Validate task attributes after initialization."""
         if self.due_date < date.today():
             raise ValueError("Due date cannot be in the past")
         if not isinstance(self.priority, Priority):
             raise ValueError("Priority must be a Priority enum")
+        if not isinstance(self.frequency, Frequency):
+            raise ValueError("Frequency must be a Frequency enum")
 
     def complete(self) -> None:
         """Mark the task as completed."""
         self.completed = True
 
-    def update(self, *, title: Optional[str] = None, due_date: Optional[date] = None, task_type: Optional[str] = None, priority: Optional[Priority] = None) -> None:
+    def update(self, *, title: Optional[str] = None, due_date: Optional[date] = None, task_type: Optional[str] = None, frequency: Optional[Frequency] = None, priority: Optional[Priority] = None) -> None:
         """Update task details."""
         if title is not None:
             self.title = title
@@ -82,6 +95,10 @@ class Task:
             self.due_date = due_date
         if task_type is not None:
             self.task_type = task_type
+        if frequency is not None:
+            if not isinstance(frequency, Frequency):
+                raise ValueError("Frequency must be a Frequency enum")
+            self.frequency = frequency
         if priority is not None:
             if not isinstance(priority, Priority):
                 raise ValueError("Priority must be a Priority enum")
@@ -90,6 +107,7 @@ class Task:
 
 class Walk:
     def __init__(self, id: str, pet: Pet, walk_date: date, walk_time: time, length_minutes: int) -> None:
+        """Initialize a walk with validation."""
         if length_minutes <= 0:
             raise ValueError("Length must be positive")
         if walk_date < date.today():
@@ -114,19 +132,20 @@ class Walk:
         self.length_minutes = length_minutes
 
 
-class User:
+class Owner:
     def __init__(self, name: str) -> None:
+        """Initialize an owner with a name."""
         self.name = name
         self.pets: List[Pet] = []
         self.tasks: Dict[str, Task] = {}
         self.walks: Dict[str, Walk] = {}
 
     def edit_name(self, new_name: str) -> None:
-        """Update the user's name."""
+        """Update the owner's name."""
         self.name = new_name
 
     def add_pet(self, pet: Pet) -> None:
-        """Add a pet to the user."""
+        """Add a pet to the owner."""
         if pet in self.pets:
             raise ValueError("Pet already added")
         self.pets.append(pet)
@@ -143,7 +162,7 @@ class User:
         return removed
 
     def assign_pet(self, pet: Pet) -> None:
-        """Assign an existing pet to this user."""
+        """Assign an existing pet to this owner."""
         if pet in self.pets:
             raise ValueError("Pet already assigned")
         self.pets.append(pet)
@@ -152,10 +171,11 @@ class User:
     def add_task(self, task: Task) -> None:
         """Add a new pet care task."""
         if task.pet not in self.pets:
-            raise ValueError("Task's pet is not owned by this user")
+            raise ValueError("Task's pet is not owned by this owner")
         if task.id in self.tasks:
             raise ValueError("Task ID already exists")
         self.tasks[task.id] = task
+        task.pet.tasks.append(task)
 
     def get_todays_tasks(self, today: date) -> List[Task]:
         """Return tasks due today."""
@@ -164,7 +184,7 @@ class User:
     def schedule_walk(self, walk: Walk) -> None:
         """Add a scheduled walk for a pet."""
         if walk.pet not in self.pets:
-            raise ValueError("Walk's pet is not owned by this user")
+            raise ValueError("Walk's pet is not owned by this owner")
         if not walk.pet.can_go_for_walk():
             raise ValueError("Pet is not eligible for a walk")
         if walk.id in self.walks:
@@ -188,6 +208,8 @@ class User:
     def remove_task(self, task_id: str) -> bool:
         """Remove a task by ID."""
         if task_id in self.tasks:
+            task = self.tasks[task_id]
+            task.pet.tasks.remove(task)
             del self.tasks[task_id]
             return True
         return False
@@ -198,3 +220,32 @@ class User:
             del self.walks[walk_id]
             return True
         return False
+
+
+class Scheduler:
+    def __init__(self, owner: Owner):
+        """Initialize a scheduler for an owner."""
+        self.owner = owner
+
+    def get_all_tasks(self) -> List[Task]:
+        """Retrieve all tasks from the owner's pets."""
+        return list(self.owner.tasks.values())
+
+    def get_tasks_by_pet(self) -> Dict[Pet, List[Task]]:
+        """Organize tasks by pet for better management."""
+        tasks_by_pet = {}
+        for pet in self.owner.pets:
+            tasks_by_pet[pet] = list(pet.tasks)
+        return tasks_by_pet
+
+    def get_pending_tasks(self) -> List[Task]:
+        """Retrieve only incomplete tasks across all pets."""
+        return [task for task in self.owner.tasks.values() if not task.completed]
+
+    def get_tasks_by_priority(self, priority: Priority) -> List[Task]:
+        """Retrieve tasks by priority."""
+        return [task for task in self.owner.tasks.values() if task.priority == priority]
+
+    def get_tasks_by_frequency(self, frequency: Frequency) -> List[Task]:
+        """Retrieve tasks by frequency."""
+        return [task for task in self.owner.tasks.values() if task.frequency == frequency]
