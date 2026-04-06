@@ -1,16 +1,40 @@
 # PawPal+ Project Reflection
 
 ## 1. System Design
+Three core actions:
+ - add a pet
+ - schedule a walk
+ - see today's tasks
+
+ The main objects needed for the system:
+ - pet attributes: name, age, breed, health
+ - pet methods: add a pet, delete a pet, edit a pet
+ - walk attributes: date, time, length
+ - walk methods: schedule a walk, edit a walk
+ - tasks attributes: title, due date, pet, type of task
+ - tasks methods: add a task, edit a task, complete a task, view today's tasks
+
+ - user attributes: name, pets
+ - user methods: create user, edit user, assign pet to user
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+The initial design was centered around four main classes: `Pet`, `Task`, `Walk`, and `User`.
+
+- `Pet`: represented a pet's profile with attributes like `name`, `age`, `breed`, and `health`. Its responsibility was to store pet-specific data and provide methods to update the pet profile and check walk eligibility.
+- `Task`: represented a pet care task with `title`, `due_date`, `pet`, `task_type`, `priority`, and `completed` status. It was responsible for tracking task details, marking completion, and allowing updates to task information.
+- `Walk`: represented a scheduled walk with `pet`, `walk_date`, `walk_time`, and `length_minutes`. Its responsibility was to encapsulate walk scheduling details and support rescheduling or updating duration.
+- `User`: acted as the system owner and aggregate manager. It held collections of pets, tasks, and walks, and provided methods for adding pets, scheduling walks, creating tasks, viewing today's tasks, editing task details, and completing tasks.
 
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+- Relationships: Pets now link back to owners; tasks/walks validate pet ownership.
+- Performance: Dicts eliminate linear searches for large datasets.
+- Robustness: Input validation prevents invalid states (e.g., past dates, negative ages).
+- Identification: Unique IDs make operations reliable and prevent conflicts.
 
 ---
 
