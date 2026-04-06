@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, time
+from datetime import date, time, timedelta
 from typing import List, Optional, Dict
 from enum import Enum
 
@@ -71,6 +71,7 @@ class Task:
     frequency: Frequency = Frequency.ONCE
     priority: Priority = Priority.MEDIUM
     completed: bool = False
+    time: Optional[str] = None  # Optional time in "HH:MM" format
 
     def __post_init__(self):
         """Validate task attributes after initialization."""
@@ -80,6 +81,14 @@ class Task:
             raise ValueError("Priority must be a Priority enum")
         if not isinstance(self.frequency, Frequency):
             raise ValueError("Frequency must be a Frequency enum")
+        if self.time is not None:
+            # Validate "HH:MM" format
+            try:
+                hours, minutes = map(int, self.time.split(':'))
+                if not (0 <= hours <= 23 and 0 <= minutes <= 59):
+                    raise ValueError("Invalid time format")
+            except (ValueError, IndexError):
+                raise ValueError("Time must be in 'HH:MM' format (e.g., '09:30')")
 
     def complete(self) -> None:
         """Mark the task as completed."""
@@ -177,6 +186,30 @@ class Owner:
         self.tasks[task.id] = task
         task.pet.tasks.append(task)
 
+    def _generate_unique_task_id(self, base_id: str) -> str:
+        """Return a unique task ID for a recurring task."""
+        candidate = f"{base_id}-next"
+        counter = 1
+        while candidate in self.tasks:
+            counter += 1
+            candidate = f"{base_id}-next-{counter}"
+        return candidate
+
+    def _schedule_next_task(self, task: Task, days_until_next: int) -> None:
+        """Create a new task instance for the next recurring occurrence."""
+        next_due_date = date.today() + timedelta(days=days_until_next)
+        next_task_id = self._generate_unique_task_id(task.id)
+        next_task = Task(
+            next_task_id,
+            task.title,
+            next_due_date,
+            task.pet,
+            task.task_type,
+            task.frequency,
+            task.priority,
+        )
+        self.add_task(next_task)
+
     def get_todays_tasks(self, today: date) -> List[Task]:
         """Return tasks due today."""
         return [task for task in self.tasks.values() if task.due_date == today]
@@ -199,10 +232,15 @@ class Owner:
         return True
 
     def complete_task(self, task_id: str) -> bool:
-        """Mark a task complete by ID."""
+        """Mark a task complete by ID and schedule the next occurrence for recurring tasks."""
         if task_id not in self.tasks:
             return False
-        self.tasks[task_id].complete()
+        task = self.tasks[task_id]
+        task.complete()
+        if task.frequency == Frequency.DAILY:
+            self._schedule_next_task(task, days_until_next=1)
+        elif task.frequency == Frequency.WEEKLY:
+            self._schedule_next_task(task, days_until_next=7)
         return True
 
     def remove_task(self, task_id: str) -> bool:
@@ -249,3 +287,46 @@ class Scheduler:
     def get_tasks_by_frequency(self, frequency: Frequency) -> List[Task]:
         """Retrieve tasks by frequency."""
         return [task for task in self.owner.tasks.values() if task.frequency == frequency]
+
+    def get_conflict_warnings(self) -> List[str]:
+        """Detect tasks scheduled at the same date and time and return warning messages.
+
+        This method checks exact date/time matches only, not overlapping durations,
+        so it can warn about direct conflicts while keeping the scheduling logic simple.
+        """
+        warnings: List[str] = []
+        scheduled_tasks: Dict[tuple[date, str], List[Task]] = {}
+        for task in self.owner.tasks.values():
+            if task.time is None:
+                continue
+            key = (task.due_date, task.time)
+            scheduled_tasks.setdefault(key, []).append(task)
+
+        for (due_date, time_str), tasks in scheduled_tasks.items():
+            if len(tasks) > 1:
+                pet_names = sorted({task.pet.name for task in tasks})
+                pet_description = "same pet" if len({task.pet.name for task in tasks}) == 1 else "different pets"
+                titles = "; ".join(f"{task.title} ({task.pet.name})" for task in tasks)
+                warnings.append(
+                    f"Warning: {len(tasks)} tasks scheduled at the same time on {due_date} {time_str} "
+                    f"for {pet_description}: {titles}"
+                )
+        return warnings
+
+    def get_tasks_sorted_by_time(self) -> List[Task]:
+        """Retrieve all tasks sorted by time (earliest first). Tasks without time sort last."""
+        return sorted(
+            self.owner.tasks.values(),
+            key=lambda task: (
+                int(task.time.split(':')[0]) * 60 + int(task.time.split(':')[1]) if task.time else float('inf')
+            )
+        )
+
+    def get_tasks_filtered(self, completed: Optional[bool] = None, pet_name: Optional[str] = None) -> List[Task]:
+        """Retrieve tasks filtered by completion status and/or pet name."""
+        tasks = list(self.owner.tasks.values())
+        if completed is not None:
+            tasks = [task for task in tasks if task.completed == completed]
+        if pet_name is not None:
+            tasks = [task for task in tasks if task.pet.name == pet_name]
+        return tasks

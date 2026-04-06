@@ -69,7 +69,7 @@ st.caption("Add a few tasks. In your final version, these should feed into your 
 if not owner.pets:
     st.warning("Add a pet first before adding tasks.")
 else:
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         task_title = st.text_input("Task title", value="Morning walk")
     with col2:
@@ -78,6 +78,8 @@ else:
         priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
     with col4:
         selected_pet_name = st.selectbox("Pet", [pet.name for pet in owner.pets])
+    with col5:
+        task_time = st.text_input("Time (HH:MM)", value="", placeholder="e.g., 09:30")
 
     if st.button("Add task"):
         selected_pet = next(pet for pet in owner.pets if pet.name == selected_pet_name)
@@ -90,7 +92,8 @@ else:
             pet=selected_pet,
             task_type="care",
             frequency=Frequency.ONCE,
-            priority=priority_enum
+            priority=priority_enum,
+            time=task_time if task_time else None
         )
         owner.add_task(task)
         st.success(f"Added task {task_title}!")
@@ -103,6 +106,7 @@ else:
                 "Title": task.title,
                 "Pet": task.pet.name,
                 "Due Date": task.due_date,
+                "Time": task.time or "N/A",
                 "Priority": task.priority.value,
                 "Completed": task.completed
             }
@@ -120,16 +124,21 @@ st.caption("This button should call your scheduling logic once you implement it.
 if st.button("Generate schedule"):
     scheduler = Scheduler(owner)
     pending_tasks = scheduler.get_pending_tasks()
-    if pending_tasks:
-        st.write("Pending Tasks Schedule:")
+    # Sort by time
+    sorted_tasks = scheduler.get_tasks_sorted_by_time()
+    # Filter to only pending tasks
+    sorted_pending_tasks = [task for task in sorted_tasks if not task.completed]
+    if sorted_pending_tasks:
+        st.write("Pending Tasks Schedule (sorted by time):")
         schedule_data = [
             {
                 "Title": task.title,
                 "Pet": task.pet.name,
                 "Due Date": task.due_date,
+                "Time": task.time or "N/A",
                 "Priority": task.priority.value
             }
-            for task in pending_tasks
+            for task in sorted_pending_tasks
         ]
         st.table(schedule_data)
     else:

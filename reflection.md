@@ -50,6 +50,8 @@ The initial design was centered around four main classes: `Pet`, `Task`, `Walk`,
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+- The scheduler currently checks for exact date/time matches when warning about conflicts, rather than testing whether tasks overlap in duration. This makes the logic simpler and efficient for a basic pet-care planner, while accepting that it may miss some duration-based conflicts.
+
 ---
 
 ## 3. AI Collaboration
