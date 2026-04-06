@@ -41,3 +41,19 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+## Testing PawPal+
+
+Run the test suite with:
+
+```bash
+python -m pytest
+```
+
+The automated tests cover:
+
+- task completion and recurring daily/weekly task generation
+- scheduler sorting of tasks by time, with untimed tasks last
+- duplicate-time conflict detection for same-day tasks
+
+Confidence Level: ⭐⭐⭐⭐⭐
