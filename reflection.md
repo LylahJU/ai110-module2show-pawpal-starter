@@ -1,97 +1,91 @@
 # PawPal+ Project Reflection
 
 ## 1. System Design
-Three core actions:
- - add a pet
- - schedule a walk
- - see today's tasks
 
- The main objects needed for the system:
- - pet attributes: name, age, breed, health
- - pet methods: add a pet, delete a pet, edit a pet
- - walk attributes: date, time, length
- - walk methods: schedule a walk, edit a walk
- - tasks attributes: title, due date, pet, type of task
- - tasks methods: add a task, edit a task, complete a task, view today's tasks
+### a. Initial design
 
- - user attributes: name, pets
- - user methods: create user, edit user, assign pet to user
+The app design was centered around four main classes: `Pet`, `Task`, `Walk`, and `Owner`.
 
-**a. Initial design**
+- `Pet`: stores pet profile data and validates walk eligibility based on health and age.
+- `Task`: stores care tasks with fields for title, due date, assigned pet, task type, priority, recurrence, and optional scheduled time.
+- `Walk`: manages walk scheduling details and allows rescheduling and duration updates.
+- `Owner`: aggregates pets, tasks, and walks while enforcing ownership validation and task lifecycle operations.
 
-The initial design was centered around four main classes: `Pet`, `Task`, `Walk`, and `User`.
+### b. Design changes
 
-- `Pet`: represented a pet's profile with attributes like `name`, `age`, `breed`, and `health`. Its responsibility was to store pet-specific data and provide methods to update the pet profile and check walk eligibility.
-- `Task`: represented a pet care task with `title`, `due_date`, `pet`, `task_type`, `priority`, and `completed` status. It was responsible for tracking task details, marking completion, and allowing updates to task information.
-- `Walk`: represented a scheduled walk with `pet`, `walk_date`, `walk_time`, and `length_minutes`. Its responsibility was to encapsulate walk scheduling details and support rescheduling or updating duration.
-- `User`: acted as the system owner and aggregate manager. It held collections of pets, tasks, and walks, and provided methods for adding pets, scheduling walks, creating tasks, viewing today's tasks, editing task details, and completing tasks.
+Yes, the design evolved during implementation. The most meaningful change was adding a dedicated `Scheduler` class to separate planning concerns from data management.
 
-**b. Design changes**
-
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
-
-- Relationships: Pets now link back to owners; tasks/walks validate pet ownership.
-- Performance: Dicts eliminate linear searches for large datasets.
-- Robustness: Input validation prevents invalid states (e.g., past dates, negative ages).
-- Identification: Unique IDs make operations reliable and prevent conflicts.
-
----
+- `Scheduler` now handles sorted task lists, pending task filters, and conflict warnings.
+- `Owner` kept core data operations, while the scheduler became responsible for planning behavior.
+- This separation made the system cleaner and easier to extend without mixing UI and scheduling logic.
 
 ## 2. Scheduling Logic and Tradeoffs
 
-**a. Constraints and priorities**
+### a. Constraints and priorities
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers:
 
-**b. Tradeoffs**
+- time ordering for scheduled tasks
+- pending status so only incomplete tasks are shown
+- exact same date/time conflicts to warn the owner
+- task priority and recurrence through the task model, with daily and weekly recurrence handled after completion
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+I focused on time ordering and conflict detection first because they directly impact the user's ability to trust the daily plan.
 
-- The scheduler currently checks for exact date/time matches when warning about conflicts, rather than testing whether tasks overlap in duration. This makes the logic simpler and efficient for a basic pet-care planner, while accepting that it may miss some duration-based conflicts.
+### b. Tradeoffs
 
----
+One tradeoff is that conflict detection only checks exact date/time overlaps, not task duration overlaps.
+
+That tradeoff is reasonable for this early pet-care planner because it keeps the scheduler simple and easy to understand while still catching the most obvious scheduling mistakes.
 
 ## 3. AI Collaboration
 
-**a. How you used AI**
+### a. How I used AI
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+I used AI as a design and implementation assistant. Copilot helped me draft method names, suggested class responsibilities, and offered small refactorings while I built `pawpal_system.py` and `app.py`.
 
-**b. Judgment and verification**
+The most helpful prompts were focused on behavior: "How should a scheduler detect conflicts?" and "What is the cleanest way to sort tasks by time and keep untimed tasks last?"
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+### b. Judgment and verification
 
----
+I did not accept every AI suggestion as-is. For example, an early suggestion proposed combining task sorting and conflict detection in one method. I rejected that because it blurred responsibilities and made testing harder.
+
+I verified AI suggestions by checking the underlying logic in `pawpal_system.py`, then confirming the class methods remained isolated and easy to reason about.
+
+### c. Separate chat sessions
+
+Using separate chat sessions for design, implementation, and documentation helped me stay organized. Each phase had a clear goal, so I could keep the architecture clean while making the final app and docs consistent.
+
+### d. Lead architect takeaway
+
+I learned that being the lead architect means guiding the overall design, choosing when to accept AI help, and making sure AI-generated suggestions fit the system's structure rather than dictating it.
 
 ## 4. Testing and Verification
 
-**a. What you tested**
+### a. What I tested
 
-- What behaviors did you test?
-- Why were these tests important?
+I tested core behaviors such as:
 
-**b. Confidence**
+- tasks sorted by time with untimed tasks last
+- duplicate-time conflict warnings for same-day tasks
+- recurring task generation after completing daily or weekly tasks
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+These behaviors are important because they ensure the scheduler produces a reliable daily plan and alerts the owner to obvious issues.
 
----
+### b. Confidence
+
+I am reasonably confident the scheduler works for the implemented behaviors. The main edge cases I would test next are overlapping tasks with durations, multiple-day recurrence, and pet-specific preference rules.
 
 ## 5. Reflection
 
-**a. What went well**
+### a. What went well
 
-- What part of this project are you most satisfied with?
+The clean division between data management and scheduling logic worked well. It made the app easier to connect to Streamlit and allowed the scheduler to be tested independently.
 
-**b. What you would improve**
+### b. What I would improve
 
-- If you had another iteration, what would you improve or redesign?
+If I had another iteration, I would expand conflict detection beyond exact same-time matches to capture duration overlaps, and I would add a richer UI for editing task times directly from the schedule.
 
-**c. Key takeaway**
+### c. Key takeaway
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+The most important lesson is that AI works best when it supports the architect's decisions rather than replacing them. Clear design boundaries and a strong acceptance/rejection process keep the system maintainable.

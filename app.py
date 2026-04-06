@@ -58,7 +58,7 @@ if st.button("Update Owner Name"):
     owner.edit_name(owner_name)
 
 if st.button("Add Pet"):
-    health_enum = HealthStatus(health.upper())
+    health_enum = HealthStatus(health)
     pet = Pet(name=pet_name, age=age, breed=species, health=health_enum)
     owner.add_pet(pet)
     st.success(f"Added pet {pet_name}!")
@@ -84,7 +84,7 @@ else:
     if st.button("Add task"):
         selected_pet = next(pet for pet in owner.pets if pet.name == selected_pet_name)
         task_id = str(uuid.uuid4())
-        priority_enum = Priority(priority.upper())
+        priority_enum = Priority(priority)
         task = Task(
             id=task_id,
             title=task_title,
@@ -123,20 +123,24 @@ st.caption("This button should call your scheduling logic once you implement it.
 
 if st.button("Generate schedule"):
     scheduler = Scheduler(owner)
-    pending_tasks = scheduler.get_pending_tasks()
-    # Sort by time
-    sorted_tasks = scheduler.get_tasks_sorted_by_time()
-    # Filter to only pending tasks
-    sorted_pending_tasks = [task for task in sorted_tasks if not task.completed]
+    sorted_pending_tasks = [task for task in scheduler.get_tasks_sorted_by_time() if not task.completed]
+    conflict_warnings = scheduler.get_conflict_warnings()
+
+    if conflict_warnings:
+        st.warning("The scheduler detected one or more task conflicts. Please review the highlighted times and adjust your plan as needed.")
+        for warning in conflict_warnings:
+            st.warning(warning)
+
     if sorted_pending_tasks:
-        st.write("Pending Tasks Schedule (sorted by time):")
+        st.success(f"Generated schedule with {len(sorted_pending_tasks)} pending task(s).")
         schedule_data = [
             {
                 "Title": task.title,
                 "Pet": task.pet.name,
                 "Due Date": task.due_date,
-                "Time": task.time or "N/A",
-                "Priority": task.priority.value
+                "Time": task.time or "No time set",
+                "Priority": task.priority.value,
+                "Frequency": task.frequency.value
             }
             for task in sorted_pending_tasks
         ]
